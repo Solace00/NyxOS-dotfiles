@@ -6,25 +6,30 @@ with pkgs;
   wget
   alacritty
   kitty
-  waybar
   git
-  zsh
-  foot
-  discord
   kdePackages.dolphin
-  rofi-wayland
+  rofi
   brightnessctl
   powertop
-  wl-clipboard
-  cliphist
-  networkmanagerapplet
   fastfetch
-  hyprshot
-  neofetch
-  htop
-  lutris
   spotify
-  brave
-  hyprpaper
-  pokemmo-installer
+  lutris
+  quickshell
+  obsidian
+  hyprshot
+
+  zeromq
+  gcc
+  python3Packages.setuptools
+  python3Packages.wheel
+  python3Packages.cython
+  python3
+  python3Packages.pip
+  python3Packages.virtualenv
+
+  julia-bin
+
+  discord
+  gcc
+  heroic
 ]

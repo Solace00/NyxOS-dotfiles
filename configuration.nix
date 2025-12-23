@@ -32,6 +32,7 @@ in
       nvidiaBusId = "PCI:1:0:0";
     };
 
+    nvidiaSettings = true;
     nvidiaPersistenced = true;
     powerManagement.enable = true;
   };
@@ -47,28 +48,31 @@ in
     };
   };
 
+  programs.gamemode.enable = true;
+
 
   # ------------- Basics -------------
-  networking.hostName = "NyxOS";
+  networking.hostName = "nyxos";
   time.timeZone = "Asia/Kolkata";
   networking.networkmanager.enable = true;
-  i18n.defaultLocale = "en_US.UTF-8";
 
   # services.xserver.enable = true;
 
+  services.udisks2.enable = true;
 
   # ------------- Updates & Maintenance -------------
   system.autoUpgrade = {
     enable = true;
     allowReboot = false;
-    flake = "/etc/nixos#nyxos";
+    flake = "~/.dotfiles/nixos#nyxos"; 
+    #channel = "https://nixos.org/channels/nixos-25.11";
     dates = "weekly";
   };
 
   nix.gc = {
     automatic = true;
     dates = "weekly";
-    options = "--delete-older-than 15d";
+    options = "--delete-older-than 7d";
   };
 
   nix.optimise = {
@@ -84,15 +88,32 @@ in
     enable = true;
     xwayland.enable = true;
   };
- 
+
+#  programs.niri = {
+#    enable = true;
+#  };
+
+
+  services.xserver.enable = true;
+
+  # Enable the KDE Plasma Desktop Environment.
+  services.displayManager.sddm.enable = true;
+
+  # Configure keymap in X11
+  services.xserver.xkb = {
+    layout = "us";
+    variant = "";
+  };
+
   # ------------- Audio -------------
   services.pipewire = {
      enable = true;
      pulse.enable = true;
   };
 
+
   # default Shell
-  environment.shells = with pkgs; [ zsh ];
+  environment.shells = with pkgs; [ bash ];
 
   # ------------- Users & Programs -------------
   users.users.frenny = {
@@ -104,7 +125,12 @@ in
   };
 
   programs.firefox.enable = true;
-  programs.steam.enable = true;
+  programs.steam = {
+    enable = true;
+    remotePlay.openFirewall = true;
+    dedicatedServer.openFirewall = true;
+    gamescopeSession.enable = true;
+  };
   services.upower.enable = true;
   powerManagement.enable = true;
 
@@ -113,7 +139,6 @@ in
 
   # ------------- Packages -------------
   environment.systemPackages = myPackages;
-
 
   # Copy the NixOS configuration file and link it from the resulting system
   # (/run/current-system/configuration.nix). This is useful in case you
@@ -142,5 +167,5 @@ in
   nixpkgs.config.allowUnfree = true;
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
   system.stateVersion = "25.05"; # Did you read the comment?
-}
 
+}
