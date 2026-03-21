@@ -1,171 +1,199 @@
 { config, lib, pkgs, ... }:
 
 let
-  myPackages = import ./packages.nix { inherit pkgs; };
+  myPackages = import ./packages/default.nix { inherit pkgs; };
 in
 {
-  # -------- imports --------
-  imports =
-    [
-      ./hardware-configuration.nix
-    ];
+  imports = [ ./hardware-configuration.nix ];
 
   # ----------- Bootloader -----------
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.systemd-boot.configurationLimit = 2;
+  boot.loader.systemd-boot = {
+    enable = true;
+    configurationLimit = 5;
+    editor = false;
+  };
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # ------------- Services -------------
-  services.getty.autologinUser = "frenny";
-  services.printing.enable = true;
+  # ----------- Kernel -----------
+  boot.kernelPackages = pkgs.linuxPackages_zen;
 
+  # ------------- GPU ---------------
   services.xserver.videoDrivers = [ "nvidia" "amdgpu" ];
 
   hardware.nvidia = {
     modesetting.enable = true;
     open = true;
+    nvidiaSettings = true;
+    nvidiaPersistenced = true;
+    powerManagement.enable = true;
 
     prime = {
-      offload.enable = true;
+      offload = {
+        enable = true;
+        enableOffloadCmd = true;
+      };
       sync.enable = false;
       amdgpuBusId = "PCI:6:0:0";
       nvidiaBusId = "PCI:1:0:0";
     };
-
-    nvidiaSettings = true;
-    nvidiaPersistenced = true;
-    powerManagement.enable = true;
   };
 
-  specialisation = {
-    gaming-time.configuration = {
-      hardware.nvidia = {
-        open = true;
-        prime.sync.enable = lib.mkForce true;
-        prime.offload.enable = lib.mkForce false;
-        prime.offload.enableOffloadCmd = lib.mkForce false;
-      };
+  specialisation.gaming.configuration = {
+    hardware.nvidia.prime = {
+      sync.enable = lib.mkForce true;
+      offload.enable = lib.mkForce false;
+      offload.enableOffloadCmd = lib.mkForce false;
     };
   };
 
-  programs.gamemode.enable = true;
-
+  # ------------- ZRAM -------------
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 50;
+  };
 
   # ------------- Basics -------------
-  networking.hostName = "nyxos";
-  time.timeZone = "Asia/Kolkata";
-  networking.networkmanager.enable = true;
+  networking = {
+    hostName = "nyxos";
+    networkmanager.enable = true;
+  };
 
-  # services.xserver.enable = true;
+  time.timeZone = "Asia/Kolkata";
+  i18n.defaultLocale = "en_US.UTF-8";
 
   services.udisks2.enable = true;
+  services.printing.enable = true;
+  services.upower.enable = true;
 
-  # ------------- Updates & Maintenance -------------
-  system.autoUpgrade = {
+  hardware.bluetooth.enable = true;
+  services.blueman.enable = true;
+
+  # ------------- Power -------------
+  powerManagement = {
     enable = true;
-    allowReboot = false;
-    flake = "~/.dotfiles/nixos#nyxos"; 
-    #channel = "https://nixos.org/channels/nixos-25.11";
-    dates = "weekly";
+    cpuFreqGovernor = "schedutil";
   };
 
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 7d";
-  };
-
-  nix.optimise = {
-    automatic = true;
-    dates = ["weekly"];
-  };
+  # ------------- Fonts -------------
+  fonts.packages = with pkgs; [
+    nerd-fonts.jetbrains-mono
+    noto-fonts
+    noto-fonts-color-emoji
+  ];
 
   # ------------- Wayland & Hyprland -------------
-
-  # services.displayManager.sddm.wayland.enable = true;
+  services.getty.autologinUser = "frenny";
 
   programs.hyprland = {
     enable = true;
     xwayland.enable = true;
   };
 
-#  programs.niri = {
-#    enable = true;
-#  };
-
-
-  services.xserver.enable = true;
-
-  # Enable the KDE Plasma Desktop Environment.
-  services.displayManager.sddm.enable = true;
-
-  # Configure keymap in X11
-  services.xserver.xkb = {
-    layout = "us";
-    variant = "";
+  xdg.portal = {
+    enable = true;
+    extraPortals = [ pkgs.xdg-desktop-portal-hyprland ];
   };
+
+  programs.dconf.enable = true;
 
   # ------------- Audio -------------
+  security.rtkit.enable = true;
   services.pipewire = {
-     enable = true;
-     pulse.enable = true;
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+    jack.enable = true;
+
+    extraConfig.pipewire."99-lowlatency" = {
+      context.properties = {
+        default.clock.rate = 48000;
+        default.clock.quantum = 512;
+        default.clock.min-quantum = 32;
+        default.clock.max-quantum = 512;
+      };
+    };
   };
 
+  # ------------- Gaming -------------
+  programs.gamemode.enable = true;
+  programs.gamescope.enable = true;
 
-  # default Shell
-  environment.shells = with pkgs; [ bash ];
-
-  # ------------- Users & Programs -------------
-  users.users.frenny = {
-     isNormalUser = true;
-     extraGroups = [ "wheel" "networkmanager" ]; # Enable ‘sudo’ for the user.
-     packages = with pkgs; [
-	    tree
-     ];
-  };
-
-  programs.firefox.enable = true;
   programs.steam = {
     enable = true;
     remotePlay.openFirewall = true;
     dedicatedServer.openFirewall = true;
     gamescopeSession.enable = true;
+    extraCompatPackages = [ pkgs.proton-ge-bin ];
   };
-  services.upower.enable = true;
-  powerManagement.enable = true;
 
-  hardware.bluetooth.enable = true;
-  services.blueman.enable = true;
+  environment.sessionVariables = {
+    DXVK_STATE_CACHE = "1";
+    DXVK_ASYNC = "1";
+  };
+
+  # ------------- System Programs -------------
+  programs.git.enable = true;
+  programs.firefox.enable = true;
+  programs.zsh.enable = true;
+
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
+  };
+
+  programs.thunar = {
+    enable = true;
+    plugins = with pkgs.xfce; [
+      thunar-archive-plugin
+      thunar-volman
+    ];
+  };
+  services.gvfs.enable = true;
+
+  programs.ssh.startAgent = true;
+
+  # ------------- Users -------------
+  users.users.frenny = {
+    isNormalUser = true;
+    shell = pkgs.zsh;
+    extraGroups = [
+      "wheel"
+      "networkmanager"
+      "input"
+      "video"
+      "audio"
+      "gamemode"
+    ];
+    packages = with pkgs; [ tree ];
+  };
 
   # ------------- Packages -------------
   environment.systemPackages = myPackages;
 
-  # Copy the NixOS configuration file and link it from the resulting system
-  # (/run/current-system/configuration.nix). This is useful in case you
-  # accidentally delete configuration.nix.
-  # system.copySystemConfiguration = true;
-
-  # This option defines the first version of NixOS you have installed on this particular machine,
-  # and is used to maintain compatibility with application data (e.g. databases) created on older NixOS versions.
-  #
-  # Most users should NEVER change this value after the initial install, for any reason,
-  # even if you've upgraded your system to a new NixOS release.
-  #
-  # This value does NOT affect the Nixpkgs version your packages and OS are pulled from,
-  # so changing it will NOT upgrade your system - see https://nixos.org/manual/nixos/stable/#sec-upgrading for how
-  # to actually do that.
-  #
-  # This value being lower than the current NixOS release does NOT mean your system is
-  # out of date, out of support, or vulnerable.
-  #
-  # Do NOT change this value unless you have manually inspected all the changes it would make to your configuration,
-  # and migrated your data accordingly.
-  #
-  # For more information, see `man configuration.nix` or https://nixos.org/manual/nixos/stable/options#opt-system.stateVersion .
- 
-  # --------- Nix Settings ----------
+  # ------------- Nix -------------
   nixpkgs.config.allowUnfree = true;
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
-  system.stateVersion = "25.05"; # Did you read the comment?
 
+  nix = {
+    settings = {
+      experimental-features = [ "nix-command" "flakes" ];
+      auto-optimise-store = true;
+    };                          # <-- settings closes here
+
+    gc = {                      # <-- gc is under nix, not nix.settings
+      automatic = true;
+      dates = "weekly";
+      options = "--delete-older-than 7d";
+    };
+  };
+
+  system.autoUpgrade = {
+    enable = true;
+    allowReboot = false;
+    flake = "~/.dotfiles/nixos#nyxos";
+    dates = "weekly";
+  };
+
+  system.stateVersion = "25.11";
 }
